@@ -337,6 +337,7 @@ submit_video_job -> get_job_status -> get_job_artifact(summary/context) -> ask_v
 - `/healthz` 开放用于链路探测，其余接口强制 `Authorization: Bearer <token>`。
 - job 数据仍写入 `runs/mcp_jobs/`，与 MCP server 共用同一份作业历史。
 - 默认拒绝分析超过 30 分钟的视频，保护 GPU 队列和手机端等待时间。
+- App 可调用 `POST /devices` 注册 Expo push token；任务完成、失败或取消时 BFF 会给已注册设备发送完成通知。
 - Mac/手机访问应通过 SSH LocalForward、VPN 或带鉴权的反向代理，不要直接公网暴露。
 
 启动方式见 [server/README.md](server/README.md)。

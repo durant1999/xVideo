@@ -57,6 +57,14 @@ curl -H "Authorization: Bearer $TOKEN" "$BASE/jobs/<job_id>/events"          # S
 curl -H "Authorization: Bearer $TOKEN" "$BASE/jobs/<job_id>/artifact/summary"
 ```
 
+Register an Expo push token for completion notifications:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"push_token":"<expo-push-token>","platform":"android"}' \
+  $BASE/devices
+```
+
 Interactive docs: `http://127.0.0.1:8788/docs`.
 
 ## Notes
@@ -67,6 +75,11 @@ Interactive docs: `http://127.0.0.1:8788/docs`.
   all handled by `MCPJobManager`; this service does not duplicate any of it.
 - The underlying CLI refuses videos longer than `video.max_duration_seconds`
   (30 minutes by default) before frame extraction, ASR, or VL inference.
+- Device push tokens are stored in `runs/mcp_jobs/devices.json`, which is under
+  the ignored runtime output tree.
+- Completion notifications are sent through Expo's push API. Python's urllib uses
+  the `http_proxy` / `https_proxy` environment exported by `.env`, so this follows
+  the same Mac proxy path as downloads when configured.
 - `MCPJobManager` is initialized once during FastAPI lifespan startup and shut down
   on application shutdown.
 - SSE emits job state changes plus heartbeat events so mobile clients and tunnels
