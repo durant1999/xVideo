@@ -60,6 +60,40 @@ def probe_duration(video_path: str | Path) -> float:
         raise PipelineError(f"Unable to read duration from ffprobe output for {video_path}") from exc
 
 
+def format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    minutes, second = divmod(total_seconds, 60)
+    hours, minute = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minute}m {second}s"
+    if minute:
+        return f"{minute}m {second}s"
+    return f"{second}s"
+
+
+def enforce_duration_limit(
+    duration_seconds: float,
+    max_duration_seconds: float | int | None,
+    *,
+    video_path: str | Path | None = None,
+) -> None:
+    if max_duration_seconds is None:
+        return
+    limit = float(max_duration_seconds)
+    if limit <= 0:
+        return
+    if duration_seconds <= limit:
+        return
+
+    target = f" for {video_path}" if video_path else ""
+    raise PipelineError(
+        "Video duration"
+        f"{target} is {format_duration(duration_seconds)} ({duration_seconds:.1f}s), "
+        f"which exceeds the configured limit of {format_duration(limit)} ({limit:.1f}s). "
+        "Refusing to analyze this video."
+    )
+
+
 def split_windows(duration: float, window_seconds: float) -> list[tuple[float, float]]:
     if duration <= 0:
         return []

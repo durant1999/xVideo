@@ -11,6 +11,7 @@ from .config import load_config
 from .fusion import fuse_files
 from .media import (
     download_video,
+    enforce_duration_limit,
     extract_audio,
     extract_frames,
     probe_duration,
@@ -32,6 +33,32 @@ def workdir_for(config: dict[str, Any], video_or_name: str, explicit: str | None
     return ensure_dir(Path(config.get("workdir", "runs")) / safe_stem(video_or_name))
 
 
+def max_duration_seconds_for(args: argparse.Namespace, video_config: dict[str, Any]) -> float | None:
+    value = getattr(args, "max_duration_seconds", None)
+    if value is None:
+        value = video_config.get("max_duration_seconds")
+    if value is None:
+        return None
+    limit = float(value)
+    if limit < 0:
+        raise PipelineError("max_duration_seconds must be greater than or equal to 0")
+    return limit
+
+
+def enforce_configured_duration_limit(
+    *,
+    duration: float,
+    args: argparse.Namespace,
+    video_config: dict[str, Any],
+    video_path: str | Path,
+) -> None:
+    enforce_duration_limit(
+        duration,
+        max_duration_seconds_for(args, video_config),
+        video_path=video_path,
+    )
+
+
 def command_download(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     output_dir = Path(args.output_dir or config.get("workdir", "runs")) / "downloads"
@@ -47,6 +74,12 @@ def command_vl(args: argparse.Namespace) -> int:
     workdir = workdir_for(config, args.video, args.workdir)
     video_path = download_video(args.video, workdir / "source", config.get("download"))
     duration = probe_duration(video_path)
+    enforce_configured_duration_limit(
+        duration=duration,
+        args=args,
+        video_config=video_config,
+        video_path=video_path,
+    )
 
     output = Path(args.output or workdir / "visual.jsonl")
     visual_rows: list[dict[str, Any]] = []
@@ -83,8 +116,16 @@ def command_vl(args: argparse.Namespace) -> int:
 
 def command_asr(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    video_config = config["video"]
     workdir = workdir_for(config, args.video, args.workdir)
     video_path = download_video(args.video, workdir / "source", config.get("download"))
+    duration = probe_duration(video_path)
+    enforce_configured_duration_limit(
+        duration=duration,
+        args=args,
+        video_config=video_config,
+        video_path=video_path,
+    )
     audio_path = extract_audio(video_path, args.audio or workdir / "audio.wav")
     rows = transcribe_audio(audio_path, config["asr"])
     output = Path(args.output or workdir / "asr.jsonl")
@@ -133,6 +174,12 @@ def command_run(args: argparse.Namespace) -> int:
     summary_path = workdir / "summary.md"
 
     video_config = config["video"]
+    enforce_configured_duration_limit(
+        duration=duration,
+        args=args,
+        video_config=video_config,
+        video_path=video_path,
+    )
     vl_config = config["vl"]
     visual_rows: list[dict[str, Any]] = []
     windows = split_windows(duration, float(args.segment_seconds or video_config["segment_seconds"]))
@@ -223,6 +270,12 @@ def build_parser() -> argparse.ArgumentParser:
     vl.add_argument("--fps", type=float, default=None)
     vl.add_argument("--segment-seconds", type=float, default=None)
     vl.add_argument("--max-side", type=int, default=None)
+    vl.add_argument(
+        "--max-duration-seconds",
+        type=float,
+        default=None,
+        help="Reject analysis when probed video duration exceeds this limit. Use 0 to disable.",
+    )
     vl.add_argument("--prompt", default=None, help="Extra per-segment instruction.")
     vl.set_defaults(func=command_vl)
 
@@ -232,6 +285,12 @@ def build_parser() -> argparse.ArgumentParser:
     asr.add_argument("--workdir", default=None)
     asr.add_argument("--audio", default=None)
     asr.add_argument("--output", default=None)
+    asr.add_argument(
+        "--max-duration-seconds",
+        type=float,
+        default=None,
+        help="Reject analysis when probed video duration exceeds this limit. Use 0 to disable.",
+    )
     asr.set_defaults(func=command_asr)
 
     fuse = subparsers.add_parser("fuse", help="Fuse visual/OCR and ASR JSONL by timestamp.")
@@ -257,6 +316,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--fps", type=float, default=None)
     run.add_argument("--segment-seconds", type=float, default=None)
     run.add_argument("--max-side", type=int, default=None)
+    run.add_argument(
+        "--max-duration-seconds",
+        type=float,
+        default=None,
+        help="Reject analysis when probed video duration exceeds this limit. Use 0 to disable.",
+    )
     run.add_argument("--prompt", default=None)
     run.add_argument("--question", default=None)
     run.add_argument("--skip-summary", action="store_true")
