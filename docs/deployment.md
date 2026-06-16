@@ -177,3 +177,25 @@ MCP 工具是异步任务模型：先 `submit_video_job` 返回 `job_id`，再 `
 - `scripts/launch_mcp_server.sh` 默认只绑定 `127.0.0.1`，外部机器无法直接连接。
 - 有 VPN 时也不要把 MCP server 绑定到 `0.0.0.0` 或 VPN 网卡 IP，除非已经加了鉴权和防火墙；否则 VPN 内其他机器可能访问。
 - 推荐保持服务器端 `127.0.0.1:9000`，Mac 使用 SSH `LocalForward` 转发。
+
+## 9. App BFF 给手机前端调用
+
+`server/` 是 FastAPI BFF，部署在 GPU 服务器的 `vedio_understand` 环境里，给 Android/Web 前端提供 REST/SSE 接口。
+
+Phase 0 先只验证链路：
+
+```bash
+cd server
+cp .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+conda run -n vedio_understand pip install -r requirements.txt
+./run.sh
+```
+
+默认监听 `127.0.0.1:8788`。Mac 先用本机 LocalForward 验证：
+
+```sshconfig
+LocalForward 127.0.0.1:8788 127.0.0.1:8788
+```
+
+手机阶段再按需改为绑定 Mac 的局域网或 Tailscale 入口。BFF 除 `/healthz` 外都需要 Bearer token；不要把服务器端 BFF 直接绑定到公网地址。

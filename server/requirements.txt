@@ -1,0 +1,5 @@
+# BFF runtime deps. Install INTO the existing `vedio_understand` conda env on the
+# GPU server (it already has video_understanding + all the heavy ML deps):
+#   conda run -n vedio_understand pip install -r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29

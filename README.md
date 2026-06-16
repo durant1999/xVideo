@@ -315,6 +315,19 @@ submit_video_job -> get_job_status -> get_job_artifact(summary/context) -> ask_v
 - 不要把 `HOST` 改成 `0.0.0.0` 或 VPN 网卡 IP，除非前面有鉴权和防火墙；否则 VPN 内其他机器可能访问这个 MCP 服务。
 - 推荐保持服务器端 `127.0.0.1:9000`，Mac 通过 `LocalForward 127.0.0.1:9000 127.0.0.1:9000` 接入。
 
+## App BFF Server
+
+`server/` 是 Android/Web 前端使用的 FastAPI BFF。它和 MCP server 复用同一个 `MCPJobManager`，提供 REST/SSE 接口给手机 App 调用。
+
+安全默认：
+
+- BFF 默认只监听 `127.0.0.1:8788`。
+- `/healthz` 开放用于链路探测，其余接口强制 `Authorization: Bearer <token>`。
+- job 数据仍写入 `runs/mcp_jobs/`，与 MCP server 共用同一份作业历史。
+- Mac/手机访问应通过 SSH LocalForward、VPN 或带鉴权的反向代理，不要直接公网暴露。
+
+启动方式见 [server/README.md](server/README.md)。
+
 ## A/B Evaluation
 
 把当前 VL+ASR 输出和 Omni 端到端输出做对比：
