@@ -109,7 +109,7 @@ python -m video_understanding run /path/to/video.mp4 --workdir runs/demo
 - `fps: 1.0`
 - `segment_seconds: 45`
 - `max_side: 960`
-- `max_duration_seconds: 1200`，默认拒绝超过 20 分钟的视频，避免长任务占满队列。
+- `max_duration_seconds: 1800`，默认拒绝超过 30 分钟的视频，避免长任务占满队列。
 
 如果漏短动作，把 fps 调到 2；如果 KV/显存压力明显，先降 `segment_seconds`，再降 `max_side`。
 
@@ -183,7 +183,7 @@ MCP 工具是异步任务模型：先 `submit_video_job` 返回 `job_id`，再 `
 
 `server/` 是 FastAPI BFF，部署在 GPU 服务器的 `vedio_understand` 环境里，给 Android/Web 前端提供 REST/SSE 接口。
 
-BFF 复用 CLI 的视频时长保护：默认超过 20 分钟的视频会在抽帧、ASR、VL 之前失败，不会烧 GPU。
+BFF 复用 CLI 的视频时长保护：默认超过 30 分钟的视频会在抽帧、ASR、VL 之前失败，不会烧 GPU。
 
 Phase 0 先只验证链路：
 

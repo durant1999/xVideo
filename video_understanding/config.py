@@ -32,7 +32,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "segment_seconds": 45,
         "max_side": 960,
         "jpeg_quality": 3,
-        "max_duration_seconds": 1200,
+        "max_duration_seconds": 1800,
     },
     "vl": {
         "base_url": "http://127.0.0.1:8000/v1",

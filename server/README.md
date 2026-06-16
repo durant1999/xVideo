@@ -66,7 +66,7 @@ Interactive docs: `http://127.0.0.1:8788/docs`.
 - Job execution, queuing (`max_workers=1`), persistence, cancellation and Q&A are
   all handled by `MCPJobManager`; this service does not duplicate any of it.
 - The underlying CLI refuses videos longer than `video.max_duration_seconds`
-  (20 minutes by default) before frame extraction, ASR, or VL inference.
+  (30 minutes by default) before frame extraction, ASR, or VL inference.
 - `MCPJobManager` is initialized once during FastAPI lifespan startup and shut down
   on application shutdown.
 - SSE emits job state changes plus heartbeat events so mobile clients and tunnels

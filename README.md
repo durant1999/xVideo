@@ -34,7 +34,7 @@
 
 3. 视频探测
    - 用 `ffprobe` 读取视频总时长。
-   - 默认拒绝分析超过 `video.max_duration_seconds=1200` 秒的视频，避免长任务占满 GPU 队列。
+   - 默认拒绝分析超过 `video.max_duration_seconds=1800` 秒的视频，避免长任务占满 GPU 队列。
    - 按 `video.segment_seconds` 切分时间窗，默认每 45 秒一段。
 
 4. 分段抽帧
@@ -192,7 +192,7 @@ python -m video_understanding run /path/to/video.mp4 --workdir runs/demo
 python -m video_understanding run "https://v.douyin.com/xxxx/" --workdir runs/demo
 ```
 
-默认超过 20 分钟的视频会在抽帧、ASR、VL 之前拒绝分析。临时调整：
+默认超过 30 分钟的视频会在抽帧、ASR、VL 之前拒绝分析。临时调整：
 
 ```bash
 python -m video_understanding run /path/to/video.mp4 \
@@ -257,7 +257,7 @@ python -m video_understanding summarize \
 - `video.fps`：默认 1。漏短动作时升到 2；成本会近似翻倍。
 - `video.segment_seconds`：默认 45。单段图片数约为 `fps * segment_seconds`。
 - `video.max_side`：默认 960。OCR 不清楚时可升高；显存/延迟压力大时降低。
-- `video.max_duration_seconds`：默认 1200，即 20 分钟。超过上限的视频会在抽帧/ASR/VL 前拒绝分析；设置为 0 可关闭。
+- `video.max_duration_seconds`：默认 1800，即 30 分钟。超过上限的视频会在抽帧/ASR/VL 前拒绝分析；设置为 0 可关闭。
 - `vl.max_tokens`：每段视觉/OCR 输出长度。
 - `asr.device_index`：默认 1，即第二张 GPU。
 - `summary.max_tokens`：最终总结或 QA 的输出长度。
@@ -336,7 +336,7 @@ submit_video_job -> get_job_status -> get_job_artifact(summary/context) -> ask_v
 - BFF 默认只监听 `127.0.0.1:8788`。
 - `/healthz` 开放用于链路探测，其余接口强制 `Authorization: Bearer <token>`。
 - job 数据仍写入 `runs/mcp_jobs/`，与 MCP server 共用同一份作业历史。
-- 默认拒绝分析超过 20 分钟的视频，保护 GPU 队列和手机端等待时间。
+- 默认拒绝分析超过 30 分钟的视频，保护 GPU 队列和手机端等待时间。
 - Mac/手机访问应通过 SSH LocalForward、VPN 或带鉴权的反向代理，不要直接公网暴露。
 
 启动方式见 [server/README.md](server/README.md)。
