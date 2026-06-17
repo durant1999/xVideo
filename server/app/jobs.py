@@ -50,6 +50,7 @@ def create_manager(settings: Any | None = None) -> Any:
         job_root=settings.job_root,
         config_path=settings.config_path,
         max_workers=1,
+        cleanup_media_on_success=not settings.keep_media,
     )
 
 

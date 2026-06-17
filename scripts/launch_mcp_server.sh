@@ -30,6 +30,10 @@ if [[ "${STATELESS_HTTP:-0}" == "1" ]]; then
   args+=(--stateless-http)
 fi
 
+if [[ "${KEEP_MEDIA:-0}" == "1" ]]; then
+  args+=(--keep-media)
+fi
+
 cd "$ROOT_DIR"
 
 if [[ -n "$CONDA_ENV" ]]; then

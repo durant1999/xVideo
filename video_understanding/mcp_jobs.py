@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -31,6 +32,12 @@ ALLOWED_ARTIFACTS = {
     "download_metadata": "work/source/download_metadata.json",
     "download_metadata.json": "work/source/download_metadata.json",
 }
+
+MEDIA_CLEANUP_RELATIVE_PATHS = (
+    "work/frames",
+    "work/audio.wav",
+)
+SOURCE_KEEP_FILES = {"download_metadata.json"}
 
 
 def utc_now() -> str:
@@ -80,6 +87,24 @@ def clamp_optional_int(
     return value
 
 
+def path_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    if path.is_file() or path.is_symlink():
+        try:
+            return path.stat().st_size
+        except OSError:
+            return 0
+    total = 0
+    for child in path.rglob("*"):
+        if child.is_file() or child.is_symlink():
+            try:
+                total += child.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
 class MCPJobManager:
     """Persistent, filesystem-backed job manager for the MCP server.
 
@@ -97,6 +122,7 @@ class MCPJobManager:
         python_executable: str | Path | None = None,
         max_workers: int = 1,
         execute_jobs: bool = True,
+        cleanup_media_on_success: bool = True,
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
         job_root_path = Path(job_root)
@@ -114,6 +140,7 @@ class MCPJobManager:
         )
         self.python_executable = str(python_executable or sys.executable)
         self.execute_jobs = execute_jobs
+        self.cleanup_media_on_success = bool(cleanup_media_on_success)
         self._lock = threading.RLock()
         self._executor = ThreadPoolExecutor(max_workers=max(1, int(max_workers)))
         self._futures: dict[str, Future[Any]] = {}
@@ -265,6 +292,7 @@ class MCPJobManager:
             "workdir": str(workdir),
             "log_path": str(log_path),
             "command": command,
+            "cleanup_media_on_success": self.cleanup_media_on_success,
             "artifacts": self.expected_artifacts(job_id),
         }
         with self._lock:
@@ -308,12 +336,24 @@ class MCPJobManager:
         if state.get("status") == "cancelling":
             self._update_state(job_id, status="cancelled", returncode=returncode, finished_at=utc_now())
         elif returncode == 0:
+            cleanup_result: dict[str, Any] = {"enabled": False}
+            if self.cleanup_media_on_success:
+                try:
+                    cleanup_result = self.cleanup_media_assets(job_id)
+                except Exception as exc:  # noqa: BLE001 - cleanup should not fail a good job.
+                    cleanup_result = {
+                        "enabled": True,
+                        "error": str(exc),
+                        "deleted_paths": [],
+                        "bytes_freed": 0,
+                    }
             self._update_state(
                 job_id,
                 status="succeeded",
                 returncode=returncode,
                 finished_at=utc_now(),
                 artifacts=self.expected_artifacts(job_id),
+                media_cleanup=cleanup_result,
             )
         else:
             self._update_state(
@@ -365,6 +405,8 @@ class MCPJobManager:
                 "workdir",
                 "log_path",
                 "error",
+                "cleanup_media_on_success",
+                "media_cleanup",
             )
             if key in state
         }
@@ -386,6 +428,48 @@ class MCPJobManager:
             reverse=True,
         )
         return [self.public_state(str(state["job_id"])) for state in states[:limit] if state.get("job_id")]
+
+    def _safe_job_path(self, job_id: str, relative_path: str) -> Path:
+        job_dir = self._job_dir(job_id).resolve()
+        path = (job_dir / relative_path).resolve()
+        if not path.is_relative_to(job_dir):
+            raise PipelineError("Resolved cleanup path escaped the job directory")
+        return path
+
+    def _delete_path(self, path: Path) -> int:
+        if not path.exists():
+            return 0
+        size = path_size_bytes(path)
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+        return size
+
+    def cleanup_media_assets(self, job_id: str) -> dict[str, Any]:
+        """Delete heavy intermediate media while preserving text artifacts and metadata."""
+        deleted_paths: list[str] = []
+        bytes_freed = 0
+
+        for relative_path in MEDIA_CLEANUP_RELATIVE_PATHS:
+            path = self._safe_job_path(job_id, relative_path)
+            if path.exists():
+                bytes_freed += self._delete_path(path)
+                deleted_paths.append(str(path))
+
+        source_dir = self._safe_job_path(job_id, "work/source")
+        if source_dir.exists() and source_dir.is_dir():
+            for child in sorted(source_dir.iterdir()):
+                if child.name in SOURCE_KEEP_FILES:
+                    continue
+                bytes_freed += self._delete_path(child)
+                deleted_paths.append(str(child))
+
+        return {
+            "enabled": True,
+            "deleted_paths": deleted_paths,
+            "bytes_freed": bytes_freed,
+        }
 
     def artifact_path(self, job_id: str, artifact: str) -> Path:
         artifact_key = str(artifact).strip()

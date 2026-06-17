@@ -32,6 +32,15 @@ class BFFServerTests(unittest.TestCase):
             settings_module.get_settings.cache_clear()
             self.assertEqual(settings_module.get_settings().repo_root, "/tmp/xvideo")
 
+    def test_settings_parse_keep_media_flag(self):
+        with patch.dict(os.environ, {"XVIDEO_KEEP_MEDIA": "1"}, clear=False):
+            settings_module.get_settings.cache_clear()
+            self.assertTrue(settings_module.get_settings().keep_media)
+
+        with patch.dict(os.environ, {"XVIDEO_KEEP_MEDIA": "0"}, clear=False):
+            settings_module.get_settings.cache_clear()
+            self.assertFalse(settings_module.get_settings().keep_media)
+
     def test_auth_fails_closed_without_configured_token(self):
         with patch.dict(os.environ, {"XVIDEO_API_TOKEN": ""}, clear=False):
             settings_module.get_settings.cache_clear()

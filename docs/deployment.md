@@ -185,6 +185,8 @@ MCP 工具是异步任务模型：先 `submit_video_job` 返回 `job_id`，再 `
 
 BFF 复用 CLI 的视频时长保护：默认超过 30 分钟的视频会在抽帧、ASR、VL 之前失败，不会烧 GPU。
 
+成功任务默认清理重资产：原视频、`frames/` 和 `audio.wav` 会删除，只保留 `context.md`、`summary.md`、JSONL、metadata 和日志。失败任务保留现场。调试时可在 `server/.env` 设置 `XVIDEO_KEEP_MEDIA=1` 后重启 BFF。
+
 Phase 0 先只验证链路：
 
 ```bash

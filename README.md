@@ -250,6 +250,13 @@ python -m video_understanding summarize \
 - `context.md`：给总结、QA、RAG 使用的文本上下文。
 - `summary.md`：默认结构化总结。
 
+BFF/MCP 异步任务成功后会默认清理重资产以节省磁盘：
+
+- 删除：`work/source/` 下的原视频/封面等媒体文件、`work/frames/`、`work/audio.wav`。
+- 保留：`state.json`、`job.log`、`summary.md`、`context.md`、`fused.jsonl`、`visual.jsonl`、`asr.jsonl`、`download_metadata.json`。
+
+失败、取消或状态未知的任务会保留现场，方便排查。直接手工运行 CLI 不会自动清理。BFF 可通过 `XVIDEO_KEEP_MEDIA=1` 关闭成功任务清理；MCP server 可用 `KEEP_MEDIA=1 scripts/launch_mcp_server.sh`。
+
 ## Tuning
 
 主要参数在 `configs/pipeline.yaml`：
@@ -337,6 +344,7 @@ submit_video_job -> get_job_status -> get_job_artifact(summary/context) -> ask_v
 - `/healthz` 开放用于链路探测，其余接口强制 `Authorization: Bearer <token>`。
 - job 数据仍写入 `runs/mcp_jobs/`，与 MCP server 共用同一份作业历史。
 - 默认拒绝分析超过 30 分钟的视频，保护 GPU 队列和手机端等待时间。
+- 成功任务默认清理原视频、frames 和 `audio.wav`，只保留追问所需文本产物和日志。
 - App 可调用 `POST /devices` 注册 Expo push token；任务完成、失败或取消时 BFF 会给已注册设备发送完成通知。
 - Mac/手机访问应通过 SSH LocalForward、VPN 或带鉴权的反向代理，不要直接公网暴露。
 

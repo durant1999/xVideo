@@ -75,6 +75,9 @@ Interactive docs: `http://127.0.0.1:8788/docs`.
   all handled by `MCPJobManager`; this service does not duplicate any of it.
 - The underlying CLI refuses videos longer than `video.max_duration_seconds`
   (30 minutes by default) before frame extraction, ASR, or VL inference.
+- Successful jobs delete source media, `frames/`, and `audio.wav` by default after
+  text artifacts are ready. Set `XVIDEO_KEEP_MEDIA=1` before startup to keep
+  those heavy intermediates for debugging or media playback.
 - Device push tokens are stored in `runs/mcp_jobs/devices.json`, which is under
   the ignored runtime output tree.
 - Completion notifications are sent through Expo's push API. Python's urllib uses

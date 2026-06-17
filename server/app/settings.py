@@ -39,6 +39,7 @@ class Settings:
     repo_root: str = DEFAULT_REPO_ROOT
     job_root: str = "runs/mcp_jobs"
     config_path: str = "configs/pipeline.yaml"
+    keep_media: bool = False
 
     @property
     def has_token(self) -> bool:
@@ -55,4 +56,5 @@ def get_settings() -> Settings:
         repo_root=os.getenv("XVIDEO_REPO_ROOT", DEFAULT_REPO_ROOT),
         job_root=os.getenv("XVIDEO_JOB_ROOT", "runs/mcp_jobs"),
         config_path=os.getenv("XVIDEO_CONFIG_PATH", "configs/pipeline.yaml"),
+        keep_media=_as_bool(os.getenv("XVIDEO_KEEP_MEDIA"), default=False),
     )

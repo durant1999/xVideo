@@ -36,6 +36,7 @@ class MCPJobManagerTests(unittest.TestCase):
             self.assertIn("job_id", state)
             self.assertTrue(state["workdir"].endswith("/work"))
             self.assertIn("summary", state["artifacts"])
+            self.assertTrue(state["cleanup_media_on_success"])
 
             persisted = manager.read_state(state["job_id"])
             command = persisted["command"]
@@ -88,6 +89,41 @@ class MCPJobManagerTests(unittest.TestCase):
 
             self.assertEqual(rows[0]["job_id"], second["job_id"])
             self.assertEqual(rows[1]["job_id"], first["job_id"])
+
+    def test_cleanup_media_assets_preserves_text_artifacts_and_metadata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manager = self.make_manager(temp_dir)
+            state = manager.submit_video_job(source="https://example.com/video")
+            job_id = state["job_id"]
+            workdir = Path(state["workdir"])
+
+            preserved_files = [
+                workdir / "summary.md",
+                workdir / "context.md",
+                workdir / "visual.jsonl",
+                workdir / "asr.jsonl",
+                workdir / "fused.jsonl",
+                workdir / "source" / "download_metadata.json",
+            ]
+            heavy_files = [
+                workdir / "source" / "video.mp4",
+                workdir / "source" / "cover.jpg",
+                workdir / "audio.wav",
+                workdir / "frames" / "0000" / "frame_000001.jpg",
+            ]
+            for path in preserved_files + heavy_files:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" * 8)
+
+            result = manager.cleanup_media_assets(job_id)
+
+            self.assertTrue(result["enabled"])
+            self.assertGreaterEqual(result["bytes_freed"], 32)
+            for path in heavy_files:
+                self.assertFalse(path.exists(), str(path))
+            for path in preserved_files:
+                self.assertTrue(path.exists(), str(path))
+            self.assertFalse((workdir / "frames").exists())
 
 
 if __name__ == "__main__":

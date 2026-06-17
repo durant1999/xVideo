@@ -29,6 +29,7 @@ def build_manager(args: argparse.Namespace) -> MCPJobManager:
         config_path=args.config,
         python_executable=args.python,
         max_workers=args.max_workers,
+        cleanup_media_on_success=not args.keep_media,
     )
 
 
@@ -61,6 +62,7 @@ def build_server(args: argparse.Namespace):
             "config_path": str(manager.config_path) if manager.config_path else None,
             "max_workers": args.max_workers,
             "python": manager.python_executable,
+            "cleanup_media_on_success": manager.cleanup_media_on_success,
             "workflow": [
                 "submit_video_job(source)",
                 "poll get_job_status(job_id)",
@@ -141,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", default="configs/pipeline.yaml", help="Pipeline config path.")
     parser.add_argument("--python", default=sys.executable, help="Python executable for pipeline jobs.")
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum concurrent pipeline jobs.")
+    parser.add_argument(
+        "--keep-media",
+        action="store_true",
+        help="Keep source video, frames, and audio.wav after successful jobs.",
+    )
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     parser.add_argument("--stateless-http", action="store_true", help="Use stateless HTTP mode.")
     return parser
